@@ -1,8 +1,16 @@
+const { Pool } = require('pg');
+const { PrismaPg } = require('@prisma/adapter-pg');
 const { PrismaClient } = require('@prisma/client');
 
-// Prevención de múltiple instanciamiento en Next/Express
-const prisma = global.prisma || new PrismaClient();
+let prisma;
 
-if (process.env.NODE_ENV === 'development') global.prisma = prisma;
+if (!global.prisma) {
+    const connectionString = process.env.DATABASE_URL;
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
+    global.prisma = new PrismaClient({ adapter });
+}
+
+prisma = global.prisma;
 
 module.exports = prisma;
