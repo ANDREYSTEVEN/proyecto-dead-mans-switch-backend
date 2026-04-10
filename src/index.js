@@ -19,7 +19,7 @@ app.get('/', (req, res) => {
 });
 
 // Iniciamos el servidor y los motores de Job Automáticos
-app.listen(PORT, () => {
-    console.log(`📡 Dead Man's Switch API transmitiendo en el puerto ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`📡 Dead Man's Switch API transmitiendo púbicamente en el puerto ${PORT}`);
     startCronJob(); // Arrancamos el vigilante fantasma
 });
