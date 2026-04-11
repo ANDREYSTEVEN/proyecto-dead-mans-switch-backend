@@ -17,4 +17,8 @@ router.post('/switches/:id/checkin', authMiddleware, checkIn);
 
 router.get('/logs', authMiddleware, getLogs);
 
+// Bóveda de archivos
+const vaultRoutes = require('./vaultRoutes');
+router.use('/vault', vaultRoutes);
+
 module.exports = router;

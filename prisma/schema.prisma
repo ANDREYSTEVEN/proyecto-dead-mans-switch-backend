@@ -12,6 +12,7 @@ model User {
   password  String
   switches  Switch[]
   logs      Log[]
+  vaultItems VaultItem[]
 }
 
 model Switch {
@@ -19,9 +20,21 @@ model Switch {
   name         String
   alertEmail   String
   targetTime   BigInt
+  durationMs   BigInt   @default(86400000)
   status       String   @default("ACTIVE")
   userId       Int
   user         User     @relation(fields: [userId], references: [id])
+  vaultItems   VaultItem[]
+}
+
+model VaultItem {
+  id        Int        @id @default(autoincrement())
+  title     String
+  content   String
+  createdAt DateTime   @default(now())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id])
+  switches  Switch[]
 }
 
 model Log {
