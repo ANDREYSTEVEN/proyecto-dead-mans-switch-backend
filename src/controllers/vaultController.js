@@ -2,7 +2,7 @@ const prisma = require('../prismaClient');
 
 const getVaultItems = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.userId;
         const items = await prisma.vaultItem.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' }
@@ -15,7 +15,7 @@ const getVaultItems = async (req, res) => {
 
 const createVaultItem = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.userId;
         const { title, content } = req.body;
         const item = await prisma.vaultItem.create({
             data: { title, content, userId }
@@ -33,7 +33,7 @@ const createVaultItem = async (req, res) => {
 
 const deleteVaultItem = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.userId;
         const { id } = req.params;
         const item = await prisma.vaultItem.findUnique({ where: { id: parseInt(id) } });
 
