@@ -7,6 +7,8 @@ require('dns').setDefaultResultOrder('ipv4first');
 
 const prisma = require('../prismaClient');
 
+const dns = require('dns');
+
 // Pasarela oficial de Gmail en producción configurada a través de Variables Externas.
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -16,9 +18,14 @@ const transporter = nodemailer.createTransport({
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
-    // Obliga al socket maestro de Nodemailer a hablar estricto IPv4 a nivel de red (TCP), 
-    // ignorando cualquier cache local DNS IPv6 que Node genere.
-    family: 4
+    // SECUESTRO LÓGICO DE DNS: Railway le miente a NodeMailer diciéndole que tiene IPv6,
+    // y Nodemailer ignora las variables globales. Tomamos control de su función de búsqueda de red,
+    // garantizando que el socket despierte única y físicamente sobre IPv4.
+    lookup: (hostname, options, callback) => {
+        dns.lookup(hostname, { family: 4 }, (err, address, family) => {
+            callback(err, address, family);
+        });
+    }
 });
 
 const startCronJob = () => {
