@@ -2,14 +2,12 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const prisma = require('../prismaClient');
 
-// Simulación de correo usando Ethereal (Ideal para Test sin cuenta de Google/AWS)
-// El día de mañana, en el .env colocarás contraseñas reales.
+// Pasarela oficial de Gmail en producción configurada a través de Variables Externas.
 const transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
+    service: 'gmail',
     auth: {
-        user: 'dummy_ethereal_user@ethereal.email', // Sustituible vía env
-        pass: 'dummy_password'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
