@@ -14,17 +14,13 @@ const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
+    // ESTRATEGIA DEFINITIVA: Engendrar el socket orígen en la interfaz IPv4 de Docker de Railway.
+    // Al atar la salida a '0.0.0.0', el núcleo de Linux colapsa cualquier intento de enrutamiento IPv6
+    // y Node se ve forzado matemáticamente a tomar la ruta IP de Gmail de la versión 4.
+    localAddress: '0.0.0.0',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    },
-    // SECUESTRO LÓGICO DE DNS: Railway le miente a NodeMailer diciéndole que tiene IPv6,
-    // y Nodemailer ignora las variables globales. Tomamos control de su función de búsqueda de red,
-    // garantizando que el socket despierte única y físicamente sobre IPv4.
-    lookup: (hostname, options, callback) => {
-        dns.lookup(hostname, { family: 4 }, (err, address, family) => {
-            callback(err, address, family);
-        });
     }
 });
 
