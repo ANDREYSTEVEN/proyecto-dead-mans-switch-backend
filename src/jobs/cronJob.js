@@ -1,5 +1,10 @@
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
+
+// 🛡️ HOTFIX: Railway no tiene soporte nativo de IPv6 para salida directa. 
+// Forzamos al motor de Node y Nodemailer a resolver los servidores de Google única y exclusivamente en IPv4.
+require('dns').setDefaultResultOrder('ipv4first');
+
 const prisma = require('../prismaClient');
 
 // Pasarela oficial de Gmail en producción configurada a través de Variables Externas.
