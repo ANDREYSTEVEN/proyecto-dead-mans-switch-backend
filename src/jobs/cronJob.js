@@ -9,11 +9,16 @@ const prisma = require('../prismaClient');
 
 // Pasarela oficial de Gmail en producción configurada a través de Variables Externas.
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    }
+    },
+    // Obliga al socket maestro de Nodemailer a hablar estricto IPv4 a nivel de red (TCP), 
+    // ignorando cualquier cache local DNS IPv6 que Node genere.
+    family: 4
 });
 
 const startCronJob = () => {
