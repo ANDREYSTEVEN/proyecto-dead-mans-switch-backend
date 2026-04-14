@@ -1,44 +1,27 @@
 const cron = require('node-cron');
-const nodemailer = require('nodemailer');
-
-// 🛡️ HOTFIX: Railway no tiene soporte nativo de IPv6 para salida directa. 
-// Forzamos al motor de Node y Nodemailer a resolver los servidores de Google única y exclusivamente en IPv4.
-require('dns').setDefaultResultOrder('ipv4first');
-
+const sgMail = require('@sendgrid/mail');
 const prisma = require('../prismaClient');
 
-const dns = require('dns');
+// Setup del API Inagotable HTTP
+if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
-// Pasarela oficial de Gmail en producción configurada a través de Variables Externas.
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    // ESTRATEGIA DEFINITIVA: Engendrar el socket orígen en la interfaz IPv4 de Docker de Railway.
-    // Al atar la salida a '0.0.0.0', el núcleo de Linux colapsa cualquier intento de enrutamiento IPv6
-    // y Node se ve forzado matemáticamente a tomar la ruta IP de Gmail de la versión 4.
-    localAddress: '0.0.0.0',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+const senderEmail = process.env.SENDER_EMAIL || 'alerta@deadmanswitch.com'; 
 
 const startCronJob = () => {
-    console.log("⏱️  Cron Job Supervisor iniciado. Escaneando cada minuto...");
+    console.log("⏱️  Cron Job Supervisor iniciado. Escaneando cada minuto para entregas por SendGrid HTTP...");
 
-    // Se ejecuta al inicio de cada minuto (*/1 * * * *)
     cron.schedule('* * * * *', async () => {
         try {
             const nowMs = Date.now();
             
-            // Buscar interruptores críticos activos
             const criticalSwitches = await prisma.switch.findMany({
                 where: {
                     status: 'ACTIVE',
                     targetTime: { lt: nowMs }
                 },
-                include: { user: true, vaultItems: true } // Incluir caja fuerte secreta!
+                include: { user: true, vaultItems: true }
             });
 
             if (criticalSwitches.length > 0) {
@@ -51,51 +34,66 @@ const startCronJob = () => {
                     });
 
                     await prisma.log.create({
-                        data: { action: "Protocolo Ejecutado", details: `Check-in Evadido. Alerta y bóveda entregada a ${sw.alertEmail}`, userId: sw.userId }
+                        data: { action: "Protocolo Ejecutado", details: `Check-in Evadido. HTML Seguro enviado a ${sw.alertEmail}`, userId: sw.userId }
                     });
 
-                    // Construcción de la Plantilla HTML Segura D.M.S
+                    if (!process.env.SENDGRID_API_KEY) {
+                        console.error("No se envió el correo final. Falta tu SENDGRID_API_KEY en Railway.");
+                        continue;
+                    }
+
+                    // Construcción Dinámica de Secretos HTML
                     let vaultHTML = '';
                     if (sw.vaultItems && sw.vaultItems.length > 0) {
-                        vaultHTML = `<div style="background: #111; border-left: 4px solid #ef4444; padding: 15px; margin-top: 20px;">
-                                        <h3 style="color: #ef4444; margin-top: 0;">📦 Archivos Secretos Desclasificados:</h3>
-                                        ${sw.vaultItems.map(item => `
-                                            <div style="background: #222; padding: 12px; margin-bottom: 10px; border-radius: 6px;">
-                                                <h4 style="color: #3b82f6; margin: 0 0 5px 0;">${item.title}</h4>
-                                                <p style="color: #ccc; margin: 0; font-family: monospace; white-space: pre-wrap;">${item.content}</p>
-                                            </div>
-                                        `).join('')}
-                                     </div>`;
+                        vaultHTML = sw.vaultItems.map(item => `
+                            <div style="background-color: #1a0a0a; border-left: 4px solid #ff4444; padding: 15px; margin-bottom: 15px;">
+                                <h3 style="color: #ff4444; margin: 0 0 10px 0; font-family: monospace;">[ARCHIVO CLASIFICADO]: ${item.title.toUpperCase()}</h3>
+                                <pre style="color: #e0e0e0; margin: 0; white-space: pre-wrap; font-family: sans-serif; font-size: 14px;">${item.content}</pre>
+                            </div>
+                        `).join('');
                     } else {
-                         vaultHTML = `<p style="color: #666; font-style: italic;">No había ninguna información clasificada sujeta a este interruptor.</p>`;
+                        vaultHTML = `<div style="padding: 15px; color: #888;">No hay expedientes adicionales atados a esta alerta.</div>`;
                     }
 
                     const emailHTML = `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 30px; border: 1px solid #333; border-radius: 10px;">
-                        <h2 style="color: #ef4444; text-align: center; text-transform: uppercase; letter-spacing: 2px;">⚠️ Alerta de Contingencia ⚠️</h2>
-                        <hr style="border-color: #333; margin: 20px 0;">
-                        <p style="font-size: 16px;">El usuario <strong>${sw.user.email}</strong> ha fallado consecutivamente en reportar su Check-in de vida en el sistema.</p>
-                        <p style="font-size: 16px;">Como encargado de seguridad de su protocolo <strong>"${sw.name}"</strong>, has recibido este registro.</p>
-                        ${vaultHTML}
-                        <hr style="border-color: #333; margin: 30px 0 20px 0;">
-                        <p style="text-align: center; color: #555; font-size: 12px;">Generado automáticamente por el motor Dead Man's Switch.<br>Tu seguridad es absoluta.</p>
-                    </div>`;
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #000000; color: #ffffff; padding: 30px; border-radius: 10px; border: 1px solid #330000;">
+                            <div style="text-align: center; border-bottom: 2px solid #ff0000; padding-bottom: 20px; margin-bottom: 30px;">
+                                <h1 style="color: #ff0000; margin: 0; letter-spacing: 2px;">⚠️ PROTOCOLO DE CONTINGENCIA</h1>
+                                <p style="color: #ff6666; font-size: 14px; margin-top: 5px;">DIVULGACIÓN AUTOMÁTICA DE DATOS</p>
+                            </div>
+                            
+                            <p style="font-size: 16px; line-height: 1.6;">Atención,</p>
+                            <p style="font-size: 16px; line-height: 1.6;">El usuario <strong>${sw.user.email}</strong> no ha respondido al Dead Man's Switch designado como <strong>"${sw.name}"</strong> dentro del límite de tiempo preestablecido.</p>
+                            
+                            <div style="background-color: #110000; border: 1px solid #ff0000; padding: 20px; border-radius: 5px; margin: 30px 0;">
+                                <p style="margin: 0; font-weight: bold; color: #ff3333; margin-bottom: 15px;">A CONTINUACIÓN SE REVELAN LOS SECRETOS VINCULADOS:</p>
+                                ${vaultHTML}
+                            </div>
+                            
+                            <p style="font-size: 14px; color: #aaaaaa; text-align: center; border-top: 1px solid #333333; padding-top: 20px;">
+                                Este es un mensaje automatizado e irreversible del sistema Dead Man's Switch.<br/>
+                                <span style="color: #ff0000;">El estado del usuario es desconocido.</span>
+                            </p>
+                        </div>
+                    `;
 
                     try {
-                        const info = await transporter.sendMail({
-                            from: '"Dead Man Switch" <alertas@deadmanswitch.com>',
+                        const msg = {
                             to: sw.alertEmail,
-                            subject: `URGENTE: Activación de Interruptor "${sw.name}"`,
-                            html: emailHTML
-                        });
-                        console.log(`✉️ Alerta de rescate con bóveda disparada para Switch ${sw.id}: ${nodemailer.getTestMessageUrl(info)}`);
+                            from: senderEmail,
+                            subject: `URGENTE: Desclasificación de Archivos "${sw.name}"`,
+                            html: emailHTML,
+                        };
+                        
+                        await sgMail.send(msg);
+                        console.log(`✉️ Alerta HTTP SendGrid disparada impecablemente para Switch ${sw.id}`);
                     } catch (e) {
-                         console.error("Fallo enviando correo simulado. Comprueba las credenciales SMTP.", e.message);
+                         console.error("Fallo crítico enviando REST API Email en SendGrid.", e.response ? e.response.body : e.message);
                     }
                 }
             }
         } catch (error) {
-            console.error("Error en la ejecución del Cron Job de escaneo:", error);
+            console.error("Error general en el Cron Job:", error);
         }
     });
 };
