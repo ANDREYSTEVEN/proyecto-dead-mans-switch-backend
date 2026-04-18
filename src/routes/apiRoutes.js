@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
-const { register, login } = require('../controllers/authController');
+const { register, login, setPanicPassword } = require('../controllers/authController');
 const { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs } = require('../controllers/switchController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // Auth
 router.post('/auth/register', register);
 router.post('/auth/login', login);
+router.post('/auth/panic', authMiddleware, setPanicPassword);
 
 // Protegidas: API Switches & Logs
 router.get('/switches', authMiddleware, getSwitches);

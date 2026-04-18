@@ -59,20 +59,25 @@ const startCronJob = () => {
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #000000; color: #ffffff; padding: 30px; border-radius: 10px; border: 1px solid #330000;">
                             <div style="text-align: center; border-bottom: 2px solid #ff0000; padding-bottom: 20px; margin-bottom: 30px;">
                                 <h1 style="color: #ff0000; margin: 0; letter-spacing: 2px;">⚠️ PROTOCOLO DE CONTINGENCIA</h1>
-                                <p style="color: #ff6666; font-size: 14px; margin-top: 5px;">DIVULGACIÓN AUTOMÁTICA DE DATOS</p>
+                                <p style="color: #ff6666; font-size: 14px; margin-top: 5px;">DIVULGACIÓN AUTOMÁTICA DE DATOS SECRETA</p>
                             </div>
                             
                             <p style="font-size: 16px; line-height: 1.6;">Atención,</p>
                             <p style="font-size: 16px; line-height: 1.6;">El usuario <strong>${sw.user.email}</strong> no ha respondido al Dead Man's Switch designado como <strong>"${sw.name}"</strong> dentro del límite de tiempo preestablecido.</p>
                             
                             <div style="background-color: #110000; border: 1px solid #ff0000; padding: 20px; border-radius: 5px; margin: 30px 0;">
-                                <p style="margin: 0; font-weight: bold; color: #ff3333; margin-bottom: 15px;">A CONTINUACIÓN SE REVELAN LOS SECRETOS VINCULADOS:</p>
+                                <p style="margin: 0; font-weight: bold; color: #ff3333; margin-bottom: 15px;">A CONTINUACIÓN SE REVELAN LOS BLOQUES DE DATOS CIFRADOS:</p>
                                 ${vaultHTML}
                             </div>
                             
+                            <div style="text-align: center; background-color: #220000; padding: 15px; border-radius: 5px; margin-bottom: 30px; border-left: 4px solid #ff0000;">
+                                <p style="color: #ff5555; font-size: 14px; margin: 0 0 10px 0;">Para desencriptar el contenido de los bloques U2FsdGVkX19x, necesitas el PIN Oficial y dirigirte al Decoder.</p>
+                                <a href="https://dead-mans-switch-ui.vercel.app/decoder" style="display: inline-block; padding: 10px 20px; background-color: #ff0000; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold; letter-spacing: 1px;">ACCEDER A LA TERMINAL DE DESCRIPCIÓN</a>
+                            </div>
+
                             <p style="font-size: 14px; color: #aaaaaa; text-align: center; border-top: 1px solid #333333; padding-top: 20px;">
-                                Este es un mensaje automatizado e irreversible del sistema Dead Man's Switch.<br/>
-                                <span style="color: #ff0000;">El estado del usuario es desconocido.</span>
+                                Este es un mensaje automatizado e irreversible.<br/>
+                                <span style="color: #ff0000;">El estado del usuario emisor es desconocido.</span>
                             </p>
                         </div>
                     `;

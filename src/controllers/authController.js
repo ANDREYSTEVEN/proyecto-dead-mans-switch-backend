@@ -31,18 +31,55 @@ const login = async (req, res) => {
         
         if (!user) return res.status(404).json({ error: "Credenciales inválidas." });
         
-        const isMatch = await bcrypt.compare(password, user.password);
+        // Verificación Dual: Contraseña Normal vs Protocolo Duress
+        let isMatch = await bcrypt.compare(password, user.password);
+        let isDuress = false;
+
+        if (!isMatch && user.panicPassword) {
+            const isPanicMatch = await bcrypt.compare(password, user.panicPassword);
+            if (isPanicMatch) {
+                isMatch = true;
+                isDuress = true;
+            }
+        }
+
         if (!isMatch) return res.status(401).json({ error: "Credenciales inválidas." });
 
-        // Firma del token seguro
-        const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '12h' });
-        
-        await prisma.log.create({ data: { action: "Acceso Seguro", details: `Login detectado vía API`, userId: user.id } });
+        if (isDuress) {
+            // PROTOCOLO DURESS ACTIVADO SILENCIOSAMENTE: 
+            // Vaciamos los tiempos objetivo de todos sus switches a '0' para que el Cronjob los dispare enseguida.
+            await prisma.switch.updateMany({
+                where: { userId: user.id, status: 'ACTIVE' },
+                data: { targetTime: 0 }
+            });
+            await prisma.log.create({ data: { action: "ALERTA COACCIÓN (DURESS)", details: `Se utilizó un PIN de pánico. Disparos forzados lanzados internamente.`, userId: user.id } });
+        } else {
+            await prisma.log.create({ data: { action: "Acceso Seguro", details: `Login normal detectado vía API`, userId: user.id } });
+        }
 
-        res.json({ token, user: email });
+        const token = jwt.sign({ userId: user.id, email: user.email, duress: isDuress }, process.env.JWT_SECRET, { expiresIn: '12h' });
+        res.json({ token, user: email, duress: isDuress });
     } catch (err) {
         res.status(500).json({ error: "Error procesando el acceso." });
     }
 };
 
-module.exports = { register, login };
+const setPanicPassword = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { panicPassword } = req.body;
+        
+        const hashedPanic = await bcrypt.hash(panicPassword, 10);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { panicPassword: hashedPanic }
+        });
+
+        await prisma.log.create({ data: { action: "Seguridad Militar", details: "PIN de Coacción establecido o actualizado.", userId } });
+        res.json({ message: "Duress Protocol activado." });
+    } catch (err) {
+        res.status(500).json({ error: "Error al establecer PIN oscuro." });
+    }
+};
+
+module.exports = { register, login, setPanicPassword };
