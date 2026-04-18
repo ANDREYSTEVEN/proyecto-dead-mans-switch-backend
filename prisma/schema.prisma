@@ -14,6 +14,7 @@ model User {
   switches  Switch[]
   logs      Log[]
   vaultItems VaultItem[]
+  securityQuestions SecurityQuestion[]
 }
 
 model Switch {
@@ -45,4 +46,12 @@ model Log {
   details String
   userId  Int
   user    User     @relation(fields: [userId], references: [id])
+}
+
+model SecurityQuestion {
+  id          Int      @id @default(autoincrement())
+  question    String
+  answerHash  String
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
 }
