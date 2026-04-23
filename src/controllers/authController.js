@@ -56,12 +56,18 @@ const login = async (req, res) => {
             await prisma.log.create({ data: { action: "Acceso Detectado", details: `Entrando a rampa de Autenticación Múltiple...`, userId: user.id } });
         }
 
-        // VERIFICAR 2FA (FASE 10)
-        const questions = await prisma.securityQuestion.findMany({ where: { userId: user.id } });
-        if (questions.length > 0) {
-            const randomQ = questions[Math.floor(Math.random() * questions.length)];
-            const tempToken = jwt.sign({ preAuthUserId: user.id, questionId: randomQ.id, duress: isDuress }, process.env.JWT_SECRET, { expiresIn: '5m' });
-            return res.json({ step: '2FA', tempToken, question: randomQ.question });
+        // VERIFICAR 2FA (MÚLTIPLES PREGUNTAS)
+        const questionsDB = await prisma.securityQuestion.findMany({ where: { userId: user.id } });
+        if (questionsDB.length > 0) {
+            // Escoger aleatoriamente hasta 3 preguntas (o menos si no tiene suficientes)
+            const shuffled = questionsDB.sort(() => 0.5 - Math.random());
+            const selectedQs = shuffled.slice(0, 3);
+            
+            const questionIds = selectedQs.map(q => q.id);
+            const tempToken = jwt.sign({ preAuthUserId: user.id, questionIds, duress: isDuress }, process.env.JWT_SECRET, { expiresIn: '5m' });
+            
+            const frontendQs = selectedQs.map(q => ({ id: q.id, question: q.question }));
+            return res.json({ step: '2FA', tempToken, questions: frontendQs });
         }
 
         const token = jwt.sign({ userId: user.id, email: user.email, duress: isDuress }, process.env.JWT_SECRET, { expiresIn: '12h' });
@@ -73,18 +79,24 @@ const login = async (req, res) => {
 
 const verify2FA = async (req, res) => {
     try {
-        const { tempToken, answer } = req.body;
-        if (!tempToken || !answer) return res.status(400).json({ error: "Faltan parámetros 2FA." });
+        const { tempToken, answers } = req.body; 
+        if (!tempToken || !answers) return res.status(400).json({ error: "Faltan parámetros 2FA." });
 
         const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-        const question = await prisma.securityQuestion.findUnique({ where: { id: decoded.questionId } });
-        if (!question || question.userId !== decoded.preAuthUserId) return res.status(404).json({ error: "Protocolo 2FA desfasado." });
+        const { questionIds } = decoded;
 
-        const isMatch = await bcrypt.compare(answer.trim().toLowerCase(), question.answerHash);
-        if (!isMatch) return res.status(401).json({ error: "Respuesta de seguridad incorrecta." });
+        // Validar cada una de las respuestas exigidas
+        for (let qId of questionIds) {
+            const question = await prisma.securityQuestion.findUnique({ where: { id: qId } });
+            if (!question || question.userId !== decoded.preAuthUserId) return res.status(404).json({ error: "Protocolo 2FA desfasado." });
+
+            const userAnswer = answers[qId] || "";
+            const isMatch = await bcrypt.compare(userAnswer.trim().toLowerCase(), question.answerHash);
+            if (!isMatch) return res.status(401).json({ error: "Una o más respuestas son incorrectas. Acceso denegado." });
+        }
 
         const user = await prisma.user.findUnique({ where: { id: decoded.preAuthUserId } });
-        await prisma.log.create({ data: { action: "Cruce 2FA Exitoso", details: "MFA completado. Cediendo Testigo.", userId: user.id } });
+        await prisma.log.create({ data: { action: "Cruce 2FA Múltiple Exitoso", details: "MFA de preguntas aleatorias completado. Cediendo Testigo.", userId: user.id } });
 
         const finalToken = jwt.sign({ userId: user.id, email: user.email, duress: decoded.duress }, process.env.JWT_SECRET, { expiresIn: '12h' });
         res.json({ step: 'SUCCESS', token: finalToken, user: user.email, duress: decoded.duress });
