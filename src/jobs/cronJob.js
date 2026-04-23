@@ -72,7 +72,7 @@ const startCronJob = () => {
                             
                             <div style="text-align: center; background-color: #220000; padding: 15px; border-radius: 5px; margin-bottom: 30px; border-left: 4px solid #ff0000;">
                                 <p style="color: #ff5555; font-size: 14px; margin: 0 0 10px 0;">Para desencriptar el contenido de los bloques U2FsdGVkX19x, necesitas el PIN Oficial y dirigirte al Decoder.</p>
-                                <a href="https://dead-mans-switch-ui.vercel.app/#/decoder" style="display: inline-block; padding: 10px 20px; background-color: #ff0000; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold; letter-spacing: 1px;">ACCEDER A LA TERMINAL DE DESENCRIPTACIÓN</a>
+                                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/decoder" style="display: inline-block; padding: 10px 20px; background-color: #ff0000; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold; letter-spacing: 1px;">ACCEDER A LA TERMINAL DE DESENCRIPTACIÓN</a>
                             </div>
 
                             <p style="font-size: 14px; color: #aaaaaa; text-align: center; border-top: 1px solid #333333; padding-top: 20px;">
