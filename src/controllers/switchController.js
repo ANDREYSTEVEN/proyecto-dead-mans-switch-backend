@@ -88,4 +88,47 @@ const getLogs = async (req, res) => {
     res.json(logs);
 };
 
-module.exports = { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs };
+const getAnalyticsData = async (req, res) => {
+    const userId = req.user.userId || req.user.id;
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0,0,0,0);
+
+    const logs = await prisma.log.findMany({
+        where: { 
+            userId,
+            date: { gte: sevenDaysAgo }
+        },
+        orderBy: { date: 'asc' }
+    });
+
+    const daysMap = {};
+    const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    // Rellenar la estructura de la gráfica con los últimos 7 días (ordenados)
+    const resultData = [];
+    for(let i=6; i>=0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayName = daysOfWeek[d.getDay()];
+        daysMap[dayName] = { name: dayName, ActividadNormal: 0, AlertasCriticas: 0 };
+        resultData.push(daysMap[dayName]); // Conserva orden cronológico
+    }
+
+    logs.forEach(log => {
+        const dayName = daysOfWeek[log.date.getDay()];
+        if(daysMap[dayName]) {
+            const action = log.action.toLowerCase();
+            // Analizar el texto del log para determinar si es comportamiento normal o crítico
+            if (action.includes('ejecutado') || action.includes('fallo') || action.includes('destruido')) {
+                daysMap[dayName].AlertasCriticas += 1;
+            } else {
+                daysMap[dayName].ActividadNormal += 1;
+            }
+        }
+    });
+
+    res.json(resultData);
+};
+
+module.exports = { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs, getAnalyticsData };

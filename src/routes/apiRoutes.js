@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { register, login, setPanicPassword, verify2FA, getSecurityQuestions, addSecurityQuestion, deleteSecurityQuestion, verifyPassword } = require('../controllers/authController');
-const { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs } = require('../controllers/switchController');
+const { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs, getAnalyticsData } = require('../controllers/switchController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // Auth
@@ -24,6 +24,7 @@ router.delete('/switches/:id', authMiddleware, deleteSwitch);
 router.post('/switches/:id/checkin', authMiddleware, checkIn);
 
 router.get('/logs', authMiddleware, getLogs);
+router.get('/analytics', authMiddleware, getAnalyticsData);
 
 // Bóveda de archivos
 const vaultRoutes = require('./vaultRoutes');
