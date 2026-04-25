@@ -70,7 +70,7 @@ const login = async (req, res) => {
             return res.json({ step: '2FA', tempToken, questions: frontendQs });
         }
 
-        const token = jwt.sign({ userId: user.id, email: user.email, duress: isDuress }, process.env.JWT_SECRET, { expiresIn: '12h' });
+        const token = jwt.sign({ userId: user.id, email: user.email, duress: isDuress, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '12h' });
         res.json({ step: 'SUCCESS', token, user: email, duress: isDuress });
     } catch (err) {
         res.status(500).json({ error: "Error procesando el acceso." });
@@ -98,7 +98,7 @@ const verify2FA = async (req, res) => {
         const user = await prisma.user.findUnique({ where: { id: decoded.preAuthUserId } });
         await prisma.log.create({ data: { action: "Cruce 2FA Múltiple Exitoso", details: "MFA de preguntas aleatorias completado. Cediendo Testigo.", userId: user.id } });
 
-        const finalToken = jwt.sign({ userId: user.id, email: user.email, duress: decoded.duress }, process.env.JWT_SECRET, { expiresIn: '12h' });
+        const finalToken = jwt.sign({ userId: user.id, email: user.email, duress: decoded.duress, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, { expiresIn: '12h' });
         res.json({ step: 'SUCCESS', token: finalToken, user: user.email, duress: decoded.duress });
     } catch (e) {
         res.status(401).json({ error: "Token temporal 2FA vencido o inválido." });
@@ -167,4 +167,42 @@ const verifyPassword = async (req, res) => {
     }
 }
 
-module.exports = { register, login, verify2FA, setPanicPassword, getSecurityQuestions, addSecurityQuestion, deleteSecurityQuestion, verifyPassword };
+const updatePassword = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { currentPassword, newPassword } = req.body;
+        
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(401).json({ error: "Tu contraseña actual es incorrecta." });
+        
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        });
+        
+        await prisma.log.create({ data: { action: "Contraseña Maestra Actualizada", details: `La llave estructural de la cuenta ha sido mutada.`, userId } });
+        res.json({ message: "Contraseña actualizada exitosamente." });
+    } catch (err) {
+        res.status(500).json({ error: "Fallo crítico actualizando credenciales." });
+    }
+};
+
+const destroySessions = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        
+        await prisma.user.update({
+            where: { id: userId },
+            data: { tokenVersion: { increment: 1 } }
+        });
+        
+        await prisma.log.create({ data: { action: "Depuración de Sesiones", details: `Se invalidaron remota y localmente todos los JWT activos.`, userId } });
+        res.json({ message: "Todas las sesiones han sido destruidas exitosamente." });
+    } catch (err) {
+        res.status(500).json({ error: "Fallo crítico destruyendo sesiones." });
+    }
+};
+
+module.exports = { register, login, verify2FA, setPanicPassword, getSecurityQuestions, addSecurityQuestion, deleteSecurityQuestion, verifyPassword, updatePassword, destroySessions };

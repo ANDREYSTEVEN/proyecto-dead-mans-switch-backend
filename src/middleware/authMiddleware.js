@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../prismaClient');
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
         if (!token) {
@@ -8,7 +9,14 @@ const authMiddleware = (req, res, next) => {
         }
         
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; // { userId: 1, email: "..." }
+        
+        // Verificación de Versión para Botón de Destrucción de Sesiones
+        const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId } });
+        if (!dbUser || dbUser.tokenVersion !== decoded.tokenVersion) {
+            return res.status(401).json({ error: "Sesión Revocada Remotamente. Debes volver a iniciar sesión." });
+        }
+
+        req.user = decoded;
         next();
     } catch (err) {
         return res.status(403).json({ error: "Token inválido o expirado." });

@@ -1,4 +1,5 @@
 const prisma = require('../prismaClient');
+const { sendContingencyEmail } = require('../utils/emailService');
 
 const getSwitches = async (req, res) => {
     // Si authMiddleware dice req.user.id en vault, asumo authController usa userId o id. Reviso: userId.
@@ -131,4 +132,36 @@ const getAnalyticsData = async (req, res) => {
     res.json(resultData);
 };
 
-module.exports = { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs, getAnalyticsData };
+const broadcastAllSwitches = async (req, res) => {
+    try {
+        const userId = req.user.userId || req.user.id;
+
+        const activeSwitches = await prisma.switch.findMany({
+            where: { userId, status: 'ACTIVE' },
+            include: { user: true, vaultItems: true }
+        });
+
+        if (activeSwitches.length === 0) {
+            return res.status(400).json({ error: "No tienes switches activos para transmitir." });
+        }
+
+        for (let sw of activeSwitches) {
+            await prisma.switch.update({
+                where: { id: sw.id },
+                data: { status: 'EXPIRED' }
+            });
+
+            await prisma.log.create({
+                data: { action: "Protocolo Ejecutado Manualmente", details: `BOTÓN ROJO: Transmisión manual disparada a ${sw.alertEmail}`, userId }
+            });
+
+            await sendContingencyEmail(sw);
+        }
+
+        res.json({ message: `¡Fuego a discreción! ${activeSwitches.length} protocolos fueron ejecutados inmediatamente.` });
+    } catch (err) {
+        res.status(500).json({ error: "Fallo crítico en el botón rojo de transmisión." });
+    }
+};
+
+module.exports = { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs, getAnalyticsData, broadcastAllSwitches };

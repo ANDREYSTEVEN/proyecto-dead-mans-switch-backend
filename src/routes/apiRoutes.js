@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { register, login, setPanicPassword, verify2FA, getSecurityQuestions, addSecurityQuestion, deleteSecurityQuestion, verifyPassword } = require('../controllers/authController');
-const { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs, getAnalyticsData } = require('../controllers/switchController');
+const { register, login, setPanicPassword, verify2FA, getSecurityQuestions, addSecurityQuestion, deleteSecurityQuestion, verifyPassword, updatePassword, destroySessions } = require('../controllers/authController');
+const { getSwitches, createSwitch, deleteSwitch, checkIn, getLogs, getAnalyticsData, broadcastAllSwitches } = require('../controllers/switchController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // Auth
@@ -11,6 +11,8 @@ router.post('/auth/login', login);
 router.post('/auth/verify-2fa', verify2FA);
 router.post('/auth/panic', authMiddleware, setPanicPassword);
 router.post('/auth/verify-password', authMiddleware, verifyPassword);
+router.post('/auth/update-password', authMiddleware, updatePassword);
+router.post('/auth/destroy-sessions', authMiddleware, destroySessions);
 
 // Security Questions API
 router.get('/security-questions', authMiddleware, getSecurityQuestions);
@@ -22,6 +24,7 @@ router.get('/switches', authMiddleware, getSwitches);
 router.post('/switches', authMiddleware, createSwitch);
 router.delete('/switches/:id', authMiddleware, deleteSwitch);
 router.post('/switches/:id/checkin', authMiddleware, checkIn);
+router.post('/switches/broadcast-all', authMiddleware, broadcastAllSwitches);
 
 router.get('/logs', authMiddleware, getLogs);
 router.get('/analytics', authMiddleware, getAnalyticsData);

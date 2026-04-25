@@ -11,6 +11,7 @@ model User {
   email     String    @unique
   password  String
   panicPassword String?
+  tokenVersion Int    @default(0)
   switches  Switch[]
   logs      Log[]
   vaultItems VaultItem[]
